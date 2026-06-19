@@ -30,10 +30,15 @@ export async function loadManifest(url: string): Promise<SourceManifest> {
 
 // --- IIIF Presentation 2.x ---
 
+interface V2Service {
+  "@id"?: string;
+}
+
 interface V2ImageResource {
   "@id": string;
   width?: number;
   height?: number;
+  service?: V2Service | V2Service[];
 }
 
 interface V2Annotation {
@@ -55,6 +60,15 @@ interface V2Manifest {
   sequences?: { canvases?: V2Canvas[] }[];
 }
 
+function extractServiceUrl(service: unknown): string | undefined {
+  if (!service) return undefined;
+  const svc = Array.isArray(service) ? service[0] : service;
+  if (!svc || typeof svc !== "object") return undefined;
+  // IIIF Image API v2 uses "@id"; v3 uses "id"
+  const url = (svc as Record<string, unknown>)["@id"] ?? (svc as Record<string, unknown>)["id"];
+  return typeof url === "string" ? url.replace(/\/info\.json$/, "") : undefined;
+}
+
 function normalizeV2(json: V2Manifest): SourceManifest {
   const sequence = json.sequences?.[0] ?? { canvases: [] };
   const canvases: SourceCanvas[] = (sequence.canvases ?? []).map((c) => {
@@ -63,6 +77,7 @@ function normalizeV2(json: V2Manifest): SourceManifest {
       url: anno.resource["@id"],
       width: anno.resource.width ?? c.width,
       height: anno.resource.height ?? c.height,
+      serviceUrl: extractServiceUrl(anno.resource.service),
     }));
     return {
       id: c["@id"],
@@ -82,6 +97,7 @@ interface V3Body {
   id: string;
   width?: number;
   height?: number;
+  service?: unknown;
 }
 
 interface V3PaintingAnnotation {
@@ -119,6 +135,7 @@ function normalizeV3(json: V3Manifest): SourceManifest {
           url: anno.body.id,
           width: anno.body.width ?? c.width,
           height: anno.body.height ?? c.height,
+          serviceUrl: extractServiceUrl(anno.body.service),
         });
       }
     }

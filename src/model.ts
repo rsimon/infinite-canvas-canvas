@@ -65,6 +65,7 @@ export function addCanvasFromSource(workspace: Workspace, sourceCanvas: SourceCa
             id: uid("img"),
             sourceImageId: firstImage.id,
             url: firstImage.url,
+            serviceUrl: firstImage.serviceUrl,
             // Image fills the canvas by default, like a normal painting anno.
             x: 0,
             y: 0,
@@ -106,6 +107,7 @@ export function addImageToCanvas(
     id: uid("img"),
     sourceImageId: sourceImage.id,
     url: sourceImage.url,
+    serviceUrl: sourceImage.serviceUrl,
     // Center the new image on the drop point.
     x: localX - targetW / 2,
     y: localY - targetH / 2,

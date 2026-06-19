@@ -5,6 +5,9 @@ export interface SourceImage {
   url: string;
   width: number;
   height: number;
+  /** IIIF Image API service base URL (without trailing slash), if present.
+   * When set, OSD loads via info.json for full deep-zoom capability. */
+  serviceUrl?: string;
 }
 
 export interface SourceCanvas {
@@ -28,6 +31,7 @@ export interface WorkspaceImage {
   id: string;
   sourceImageId: string;
   url: string;
+  serviceUrl?: string;
   x: number;
   y: number;
   w: number;

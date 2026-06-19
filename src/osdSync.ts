@@ -64,7 +64,7 @@ export function syncWorld(
       const worldW = img.w * scale;
 
       viewer.addTiledImage({
-        tileSource: { type: "image", url: img.url },
+        tileSource: img.serviceUrl ? `${img.serviceUrl}/info.json` : { type: "image", url: img.url },
         x: worldX,
         y: worldY,
         // Only width is specified; OSD derives height from the loaded
