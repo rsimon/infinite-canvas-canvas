@@ -44,6 +44,7 @@ const viewer = OpenSeadragon({
   element: osdContainer,
   showNavigationControl: true,
   showNavigator: true,
+  prefixUrl: "https://openseadragon.github.io/openseadragon/images/",
   navigatorPosition: "BOTTOM_RIGHT",
   gestureSettingsMouse: { clickToZoom: false },
   // 0 = no constraint: user can freely pan to empty workspace area.
@@ -66,9 +67,18 @@ const viewer = OpenSeadragon({
 // (drop indicators, etc.) have a valid coordinate mapping before any
 // content is added. Without this, viewer.addOverlay on an empty world
 // has no coordinate system to anchor to and fills the viewport.
+//
+// The padding must match what syncWorld uses in its auto-fit on first
+// drop (unionRect(frameUnion, tableBounds) + 10%), so the drop
+// placeholder and the materialized canvas appear at the same screen
+// position and scale.
 {
   const b = tableBounds(workspace);
-  viewer.viewport.fitBounds(new OpenSeadragon.Rect(b.x, b.y, b.w, b.h), true);
+  const padding = Math.max(b.w, b.h) * 0.1;
+  viewer.viewport.fitBounds(
+    new OpenSeadragon.Rect(b.x - padding, b.y - padding, b.w + padding * 2, b.h + padding * 2),
+    true
+  );
 }
 
 // Defer all world rebuilds to a requestAnimationFrame callback so they always

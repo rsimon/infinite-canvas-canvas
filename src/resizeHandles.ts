@@ -103,29 +103,30 @@ export function setupResizeHandles({
   }
 
   function refreshHandles(): void {
+    // During a resize drag, pointermove drives handle positions directly —
+    // skip the world-read to avoid OSD's animation event (fired by setWidth)
+    // overwriting those positions with stale values.
+    if (drag) return;
+
     const sel = getSelection();
     if (sel?.type !== "image") {
       layer.style.display = "none";
       return;
     }
 
-    const workspace = getWorkspace();
-    const state = getRenderState();
-    const wc = workspace.canvases.find((c) => c.id === sel.canvasId);
-    const img = wc?.images.find((i) => i.id === sel.imageId);
-    const frame = state.frames.find((f) => f.canvasId === sel.canvasId);
-
-    if (!img || !frame) {
+    // Read the TiledImage's live world-space bounds rather than the model.
+    // The model only updates on gesture commit (pointerup / canvas-release),
+    // so reading from it during a move or resize drag would snap handles back
+    // to the pre-gesture position on every animation frame.
+    const ti = getRenderState().tiledImagesByImageId.get(sel.imageId);
+    if (!ti) {
       layer.style.display = "none";
       return;
     }
 
+    const b = ti.getBounds(true);
     layer.style.display = "block";
-    const left   = frame.x + img.x * frame.scale;
-    const top    = frame.y + img.y * frame.scale;
-    const right  = left + img.w * frame.scale;
-    const bottom = top  + img.h * frame.scale;
-    placeHandlesAt(left, top, right, bottom);
+    placeHandlesAt(b.x, b.y, b.x + b.width, b.y + b.height);
   }
 
   viewer.addHandler("update-viewport", refreshHandles);

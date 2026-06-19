@@ -1,5 +1,5 @@
 import OpenSeadragon from "openseadragon";
-import { frameAtPoint, nearestSlotIndex, dropIndicatorForIndex } from "./layout.js";
+import { frameAtPoint, nearestSlotIndex, dropIndicatorForIndex, fitContain } from "./layout.js";
 import { addCanvasFromSource, addImageToCanvas } from "./model.js";
 import type { SourceCanvas, Workspace } from "./types";
 import type { RenderState } from "./osdSync.js";
@@ -121,11 +121,19 @@ export function setupDragController({
   function showIndicator(workspace: Workspace, index: number): void {
     if (!dragState) return;
     const indicator = dropIndicatorForIndex(workspace, index);
+    // For box indicators: the slot ghost should match the exact rect where the
+    // source canvas will actually render (fitContain of the slot box), not the
+    // full slot box — otherwise the placeholder appears at a different position
+    // than the canvas that materializes on drop.
+    const rect =
+      indicator.kind === "box"
+        ? fitContain(indicator.rect, dragState.sourceCanvas.width, dragState.sourceCanvas.height)
+        : indicator.rect;
     const el = document.createElement("div");
     el.className = indicator.kind === "box" ? "slot-ghost slot-ghost-box" : "slot-ghost slot-ghost-line";
     viewer.addOverlay({
       element: el,
-      location: new OpenSeadragon.Rect(indicator.rect.x, indicator.rect.y, indicator.rect.w, indicator.rect.h),
+      location: new OpenSeadragon.Rect(rect.x, rect.y, rect.w, rect.h),
     });
     dragState.indicatorEl = el;
   }

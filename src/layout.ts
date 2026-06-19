@@ -28,7 +28,7 @@ function slotBox(workspace: Workspace, i: number): Rect {
  * "object-fit: contain" — fit a (width x height) box inside a slot,
  * preserving aspect ratio, centered.
  */
-function fitContain(box: Rect, width: number, height: number): Rect {
+export function fitContain(box: Rect, width: number, height: number): Rect {
   const boxAspect = box.w / box.h;
   const aspect = width / height;
   let w: number, h: number;
