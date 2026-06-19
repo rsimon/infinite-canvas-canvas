@@ -1,7 +1,7 @@
 import OpenSeadragon from "openseadragon";
-import { frameAtPoint, imageAtPoint } from "./layout.js";
+import { frameAtPoint } from "./layout.js";
 import { moveImageBy } from "./model.js";
-import { select, clearSelection } from "./selection.js";
+import { select, clearSelection, getSelection } from "./selection.js";
 import type { Frame, Workspace, WorkspaceCanvas, WorkspaceImage } from "./types";
 import type { RenderState } from "./osdSync.js";
 
@@ -49,17 +49,44 @@ export function setupCanvasInteractions({
 
   function hitTest(point: OpenSeadragon.Point): HitResult | null {
     const { frames } = getRenderState();
+    const workspace = getWorkspace();
+
+    // Check images first in world-space so images dragged outside their canvas
+    // frame are still hittable. Frames and images are checked in reverse order
+    // so later-added (visually on top) items win.
+    for (let fi = frames.length - 1; fi >= 0; fi--) {
+      const frame = frames[fi];
+      const wc = workspace.canvases.find((c) => c.id === frame.canvasId);
+      if (!wc) continue;
+      for (let ii = wc.images.length - 1; ii >= 0; ii--) {
+        const img = wc.images[ii];
+        const l = frame.x + img.x * frame.scale;
+        const t = frame.y + img.y * frame.scale;
+        const r = l + img.w * frame.scale;
+        const b = t + img.h * frame.scale;
+        if (point.x >= l && point.x <= r && point.y >= t && point.y <= b) {
+          return { frame, canvas: wc, image: img };
+        }
+      }
+    }
+
+    // No image hit — check for a bare canvas frame.
     const frame = frameAtPoint(frames, point);
     if (!frame) return null;
-    const wc = getWorkspace().canvases.find((c) => c.id === frame.canvasId);
-    if (!wc) return null;
-    return { frame, canvas: wc, image: imageAtPoint(wc, frame, point) };
+    const wc = workspace.canvases.find((c) => c.id === frame.canvasId);
+    return wc ? { frame, canvas: wc, image: null } : null;
   }
 
   viewer.addHandler("canvas-press", (event: OpenSeadragon.CanvasPressEvent) => {
     const point = viewer.viewport.pointFromPixel(event.position);
     const hit = hitTest(point);
     if (!hit?.image) return;
+
+    // Only start a move drag when the image is already selected. A press on
+    // an unselected image falls through to OSD's pan; canvas-click (quick=true)
+    // will then select it, and the next press+drag will move it.
+    const sel = getSelection();
+    if (sel?.type !== "image" || sel.imageId !== hit.image.id) return;
 
     const tiledImage = getRenderState().tiledImagesByImageId.get(hit.image.id);
     if (!tiledImage) return; // image not finished loading yet -- skip drag, allow normal pan
