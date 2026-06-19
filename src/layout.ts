@@ -83,6 +83,32 @@ export function frameUnion(frames: Frame[]): Rect {
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
+/**
+ * A generous "table" viewing area, sized off the grid config rather
+ * than tightly around current content. Used for the one-time initial
+ * fit so the first canvas dropped reads as a small page placed on a
+ * large work surface -- not a page filling the whole screen -- with
+ * visible room around it for more pages to land in.
+ */
+export function tableBounds(workspace: Workspace, minRows = 2): Rect {
+  const { columns, gutter, slotWidth, slotHeight } = workspace.layout;
+  const rows = Math.max(minRows, Math.ceil(workspace.canvases.length / columns) + 1);
+  return {
+    x: -gutter,
+    y: -gutter,
+    w: columns * (slotWidth + gutter) + gutter,
+    h: rows * (slotHeight + gutter) + gutter,
+  };
+}
+
+export function unionRect(a: Rect, b: Rect): Rect {
+  const minX = Math.min(a.x, b.x);
+  const minY = Math.min(a.y, b.y);
+  const maxX = Math.max(a.x + a.w, b.x + b.w);
+  const maxY = Math.max(a.y + a.h, b.y + b.h);
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
 function pointInRect(point: Point, rect: Rect): boolean {
   return point.x >= rect.x && point.x <= rect.x + rect.w && point.y >= rect.y && point.y <= rect.y + rect.h;
 }

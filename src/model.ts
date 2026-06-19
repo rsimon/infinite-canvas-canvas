@@ -149,6 +149,31 @@ export function removeCanvas(workspace: Workspace, workspaceCanvasId: string): v
   notify(workspace);
 }
 
+/**
+ * Set an image's position and size in canvas-local units.
+ * Mirrors the IIIF xywh convention; both position and dimensions are updated
+ * atomically so the bounding box is always internally consistent.
+ */
+export function resizeImage(
+  workspace: Workspace,
+  canvasId: string,
+  imageId: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  opts: { silent?: boolean } = {}
+): void {
+  const wc = workspace.canvases.find((c) => c.id === canvasId);
+  const img = wc?.images.find((i) => i.id === imageId);
+  if (!img) return;
+  img.x = x;
+  img.y = y;
+  img.w = w;
+  img.h = h;
+  if (!opts.silent) notify(workspace);
+}
+
 /** Trigger listeners without mutating anything — e.g. to commit a silent drag. */
 export function forceRender(workspace: Workspace): void {
   notify(workspace);

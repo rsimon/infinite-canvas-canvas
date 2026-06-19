@@ -64,7 +64,6 @@ export function setupCanvasInteractions({
     const tiledImage = getRenderState().tiledImagesByImageId.get(hit.image.id);
     if (!tiledImage) return; // image not finished loading yet -- skip drag, allow normal pan
 
-    viewer.setMouseNavEnabled(false);
     const bounds = tiledImage.getBounds();
     dragging = {
       canvasId: hit.canvas.id,
@@ -77,18 +76,41 @@ export function setupCanvasInteractions({
 
   viewer.addHandler("canvas-drag", (event: OpenSeadragon.CanvasDragEvent) => {
     if (!dragging) return;
+    const d = dragging;
+    // Suppress OSD's own drag-to-pan for *this* gesture only. Note this
+    // does NOT disable the tracker (unlike viewer.setMouseNavEnabled,
+    // which we deliberately avoid here -- it disables the very same
+    // tracker that fires canvas-release/canvas-click, which would leave
+    // pan/zoom and selection permanently broken after the first image
+    // drag, since nothing would ever fire to turn it back on).
     event.preventDefaultAction = true;
-    dragging.moved = true;
+    d.moved = true;
     const point = viewer.viewport.pointFromPixel(event.position);
-    dragging.tiledImage.setPosition(
-      new OpenSeadragon.Point(point.x - dragging.grabOffset.x, point.y - dragging.grabOffset.y),
-      true
-    );
+    const newX = point.x - d.grabOffset.x;
+    const newY = point.y - d.grabOffset.y;
+    d.tiledImage.setPosition(new OpenSeadragon.Point(newX, newY), true);
+
+    // Keep the selection ring overlay in sync with the image being dragged.
+    // The ring is a static OSD overlay (it doesn't automatically follow a
+    // TiledImage that moves via setPosition), so we reposition it manually.
+    const state = getRenderState();
+    const ringEl = state.selectedImageRingEl;
+    if (ringEl) {
+      const frame = state.frames.find((f) => f.canvasId === d.canvasId);
+      const wc = getWorkspace().canvases.find((c) => c.id === d.canvasId);
+      const img = wc?.images.find((i) => i.id === d.imageId);
+      if (frame && img) {
+        try {
+          viewer.updateOverlay(ringEl, new OpenSeadragon.Rect(newX, newY, img.w * frame.scale, img.h * frame.scale));
+        } catch {
+          /* overlay may have been removed by a concurrent resync */
+        }
+      }
+    }
   });
 
   viewer.addHandler("canvas-release", () => {
     if (!dragging) return;
-    viewer.setMouseNavEnabled(true);
 
     if (dragging.moved) {
       const { canvasId, imageId, tiledImage } = dragging;
@@ -101,7 +123,11 @@ export function setupCanvasInteractions({
         const bounds = tiledImage.getBounds();
         const localX = (bounds.x - frame.x) / frame.scale;
         const localY = (bounds.y - frame.y) / frame.scale;
-        moveImageBy(workspace, canvasId, imageId, localX - img.x, localY - img.y);
+        // Use silent to avoid triggering a notify (and full world rebuild) here.
+        // select() below fires subscribeSelection → rerender(), which reads the
+        // already-updated model -- giving us one clean rebuild instead of two
+        // synchronous world.removeAll() calls inside the same OSD event handler.
+        moveImageBy(workspace, canvasId, imageId, localX - img.x, localY - img.y, { silent: true });
       }
       select({ type: "image", canvasId, imageId });
     }

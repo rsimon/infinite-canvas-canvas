@@ -1,5 +1,5 @@
 import OpenSeadragon from "openseadragon";
-import { computeFrames, frameUnion } from "./layout.js";
+import { computeFrames, frameUnion, tableBounds, unionRect } from "./layout.js";
 import type { Frame, Selection, Workspace } from "./types";
 
 export interface RenderState {
@@ -7,6 +7,10 @@ export interface RenderState {
   /** Live TiledImage instances keyed by workspace image id — used for
    * direct manipulation during a drag, bypassing a full resync. */
   tiledImagesByImageId: Map<string, OpenSeadragon.TiledImage>;
+  /** The selection ring overlay element for the currently-selected image, if any.
+   * Exposed so canvasInteractions can reposition it live during a drag gesture
+   * rather than waiting for a full resync on release. */
+  selectedImageRingEl: HTMLElement | null;
 }
 
 /**
@@ -28,6 +32,7 @@ export function syncWorld(
   const frames = computeFrames(workspace);
   const frameById = new Map(frames.map((f) => [f.canvasId, f]));
   const tiledImagesByImageId = new Map<string, OpenSeadragon.TiledImage>();
+  let selectedImageRingEl: HTMLElement | null = null;
 
   for (const wc of workspace.canvases) {
     const frame = frameById.get(wc.id);
@@ -80,18 +85,19 @@ export function syncWorld(
           element: ringEl,
           location: new OpenSeadragon.Rect(worldX, worldY, worldW, img.h * scale),
         });
+        selectedImageRingEl = ringEl;
       }
     }
   }
 
   if (fit && frames.length > 0) {
-    const union = frameUnion(frames);
-    const padding = Math.max(union.w, union.h) * 0.08;
+    const bounds = unionRect(frameUnion(frames), tableBounds(workspace));
+    const padding = Math.max(bounds.w, bounds.h) * 0.1;
     viewer.viewport.fitBounds(
-      new OpenSeadragon.Rect(union.x - padding, union.y - padding, union.w + padding * 2, union.h + padding * 2),
+      new OpenSeadragon.Rect(bounds.x - padding, bounds.y - padding, bounds.w + padding * 2, bounds.h + padding * 2),
       true
     );
   }
 
-  return { frames, tiledImagesByImageId };
+  return { frames, tiledImagesByImageId, selectedImageRingEl };
 }

@@ -243,6 +243,29 @@ body {
   font-size: 13px;
 }
 
+/* --- Resize handles (corner handles for selected images) --- */
+
+.resize-handles-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20; /* above OSD overlays */
+  display: none;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 2px solid #ffb84d;
+  border-radius: 2px;
+  /* Center the handle on its corner point. */
+  transform: translate(-50%, -50%);
+  pointer-events: all;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
 /* --- Inspector panel --- */
 
 .inspector-section {
