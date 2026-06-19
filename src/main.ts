@@ -13,6 +13,7 @@ import { setupResizeHandles } from "./resizeHandles.js";
 import "./style.css";
 
 const SOURCE_MANIFEST_URL = "https://byabbe.se/codicum-static-iiif-playground/manifest.json";
+// const SOURCE_MANIFEST_URL = "https://iiif.bodleian.ox.ac.uk/iiif/manifest/441db95d-cdff-472e-bb2d-b46f043db82d.json";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
