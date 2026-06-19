@@ -98,6 +98,11 @@ function scheduleRender({ fit = false }: { fit?: boolean } = {}): void {
     pendingFit = false;
     renderState = syncWorld(viewer, workspace, getSelection(), { fit: doFit });
     renderInspector(inspectorEl, workspace, getSelection());
+    // Reposition handles immediately after every world rebuild. OSD animation
+    // events would eventually do this, but tiledImagesByImageId is populated
+    // asynchronously (success callbacks), so the model-fallback path in
+    // refreshHandles covers the window before they fire.
+    refreshHandles();
   });
 }
 

@@ -114,19 +114,34 @@ export function setupResizeHandles({
       return;
     }
 
-    // Read the TiledImage's live world-space bounds rather than the model.
-    // The model only updates on gesture commit (pointerup / canvas-release),
-    // so reading from it during a move or resize drag would snap handles back
-    // to the pre-gesture position on every animation frame.
-    const ti = getRenderState().tiledImagesByImageId.get(sel.imageId);
-    if (!ti) {
-      layer.style.display = "none";
-      return;
+    const state = getRenderState();
+    const ti = state.tiledImagesByImageId.get(sel.imageId);
+
+    let left: number, top: number, right: number, bottom: number;
+
+    if (ti) {
+      // Preferred path: read the TiledImage's live bounds so handles track
+      // the visual position during move and resize gestures (where the model
+      // lags until the gesture commits).
+      const b = ti.getBounds(true);
+      left = b.x; top = b.y; right = b.x + b.width; bottom = b.y + b.height;
+    } else {
+      // Fallback: tiledImagesByImageId is populated asynchronously by
+      // addTiledImage's success callback. Right after syncWorld runs the map
+      // is empty; using the model+frame avoids hiding the handles during that
+      // transient window (which OSD animation events might never re-open).
+      const wc = getWorkspace().canvases.find((c) => c.id === sel.canvasId);
+      const img = wc?.images.find((i) => i.id === sel.imageId);
+      const frame = state.frames.find((f) => f.canvasId === sel.canvasId);
+      if (!img || !frame) { layer.style.display = "none"; return; }
+      left   = frame.x + img.x * frame.scale;
+      top    = frame.y + img.y * frame.scale;
+      right  = left + img.w * frame.scale;
+      bottom = top  + img.h * frame.scale;
     }
 
-    const b = ti.getBounds(true);
     layer.style.display = "block";
-    placeHandlesAt(b.x, b.y, b.x + b.width, b.y + b.height);
+    placeHandlesAt(left, top, right, bottom);
   }
 
   viewer.addHandler("update-viewport", refreshHandles);
@@ -136,16 +151,19 @@ export function setupResizeHandles({
     const el = handleEls[corner];
 
     el.addEventListener("pointerdown", (e: PointerEvent) => {
-      // Stop the event from reaching OSD's MouseTracker so it doesn't start a pan.
-      e.stopPropagation();
-      e.preventDefault();
-
       const sel = getSelection();
       if (sel?.type !== "image") return;
 
       const state = getRenderState();
       const tiledImage = state.tiledImagesByImageId.get(sel.imageId);
-      if (!tiledImage) return; // image still loading — skip
+      if (!tiledImage) return; // image still loading — let the click through to OSD
+
+      // Only claim the event once we know we'll handle it. Stopping propagation
+      // before the early exits would silently swallow clicks (e.g. "select a
+      // different image") when the TiledImage isn't ready yet, since OSD would
+      // never see the press and canvas-click would never fire.
+      e.stopPropagation();
+      e.preventDefault();
 
       const workspace = getWorkspace();
       const wc = workspace.canvases.find((c) => c.id === sel.canvasId);
